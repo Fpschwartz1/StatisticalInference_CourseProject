@@ -1,0 +1,91 @@
+---
+title: "Statistical Inference - Course Project Part 1"
+date: "Wednesday, August 20, 2014"
+output: pdf_document
+---
+
+This is the first part of the project for the Statistical Inference class. It consists of simulating the exponential distribution in R - with the function rexp(n, lambda) and lambda equals to 2 - in order to investigate the distribution of averages of 40 exponential(0.2)s. It is known that both the mean and the standard deviation of exponential distribution are 1/lambda.
+
+Let's start with the initialization of variables:
+
+```{r}
+nsim   <- 1000      # number of simulations
+n      <- 40        # sample size of 40 as requested
+lambda <- 0.2
+mu     <- 1/lambda  # mu is the population mean = 5
+s      <- mu        # s is the population standard deviation = 5
+SE     <- s/sqrt(n) # SE is the theoretical standard error 
+```
+
+The simulation consists of a loop where the distribution of exponential sample means is built.
+
+```{r, echo=FALSE}
+set.seed(18000)
+```
+```{r}
+X  <- NULL # vector of averages of exponential samples
+S  <- NULL # vector containing the standard deviation of each exponential sample
+sn <- NULL # vector of normalized averages of exponential samples
+for(i in 1:nsim){
+    exp_i <- rexp(n,lambda)      # exponential sample
+    xi    <- mean(exp_i)         # exponential sample mean
+    X     <- c(X,xi)
+    S     <- c(S,sd(exp_i))
+    sn    <- c(sn, (xi-mu)/SE)
+}
+```
+
+Based on the above simulation, it is possible to:
+
+1. Show where the distribution is centered at and compare it to the theoretical center of the distribution.
+
+> The sample means of a collection of iid observations constitutes a new distribution. According to the Law of Large Numbers the average of this new distribution limits to what it's estimating, i.e. the population mean (theoretical center). We define an estimator as consistent if it converges to what you want to estimate. The simulation results show this trend below.
+
+```{r, echo=FALSE}
+paste("sample-mean's estimate =",round(mean(X),4),"|| population mean =", mu)
+```
+
+2. Show how variable it is and compare it to the theoretical variance of the distribution.
+
+> Different samples drawn from the same population would in general have different values of the sample mean. So, the distribution of sampled means has its own mean and variance. The standard deviation (square root of variance) of those sample means is knwon as the standard error of the mean, i.e., of using the sample mean as a method of estimating the population mean. The simulation results show that the distribution standard deviation tends to the theoretical standard error (SE).
+
+```{r, echo=FALSE}
+paste("standard deviation of sample means =",round(sd(X),4),"|| theoretical standard error =", round(SE,4))
+```
+
+3. Show that the distribution is approximately normal.
+
+> The Central Limit Theorem states that the distribution of averages of iid random variables becomes that of a standard normal as the sample size increases. For the sample size of 40, the vector of normalized averages of exponential samples (sn) was plotted superimposed on the standard normal curve so as to show this phenomena.
+
+```{r fig.width=8, fig.height=4, echo=FALSE}
+library(ggplot2)
+dsn <- density(sn)
+k <- length(dsn[[1]])
+df <- data.frame(y = c(dnorm(dsn[[1]]), dsn[[2]]),
+                 x = dsn[[1]],
+                 dist = factor(rep(c("Standard Normal", "Normalized Averages"), c(k,k))))
+g <- ggplot(df, aes(x = x, y = y)) 
+g <- g + geom_line(size = 1.5, aes(colour = dist), fill=T)
+g <- g + ylab("density")
+g
+```
+
+4. Evaluate the coverage of the confidence interval for 1/lambda: $\bar X \pm 1.96 \frac{S}{\sqrt{n}}$
+
+> For all of the 1,000 simulated samples, the mean (vector X) and standard deviation (vector S) were calculated. Here, they were used to determine the requested confidence interval for each sample. After, the coverage was verified by estimating the percentage of these confidence intervals which contains the true population mean 1/lambda (= 5).
+
+```{r}
+     coverage <- NULL
+     for(i in 1:nsim){
+         ll <- X[i] - 1.96 * S[i]/sqrt(n)
+         ul <- X[i] + 1.96 * S[i]/sqrt(n)
+         coverage <- c(coverage,ll < 1/lambda & ul > 1/lambda)
+     }
+     mean(coverage)
+```
+> This result shows that the coverage related to the sample size of 40 is below the expected one (95%). A better coverage could be achieved by using a higher sample size.
+
+
+
+P.S.: The markdown file used to generate this report can be found in
+https://github.com/Fpschwartz1/StatisticalInference_CourseProject/CourseProject_Part1.Rmd
