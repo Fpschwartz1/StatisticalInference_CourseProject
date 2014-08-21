@@ -88,4 +88,4 @@ g
 
 
 P.S.: The markdown file used to generate this report can be found in
-https://github.com/Fpschwartz1/StatisticalInference_CourseProject/CourseProject_Part1.Rmd
+https://github.com/Fpschwartz1/StatisticalInference_CourseProject/blob/master/CourseProject_Part1.Rmd
