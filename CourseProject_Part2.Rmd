@@ -1,0 +1,174 @@
+---
+title: "Statistical Inference - Course Project Part 2"
+date: "Wednesday, August 20, 2014"
+output: pdf_document
+---
+
+This is the second part of the project for the Statistical Inference class. It consists of analyzing the ToothGrowth data in the R datasets package and executing the following tasks.
+
+1. Load the ToothGrowth data and perform some basic exploratory data analyses.
+
+> The ToothGrowth dataset contains the length of odontoblasts (teeth) in each of 10 guinea pigs at each of three dose levels of Vitamin C (0.5, 1, and 2 mg) with each of two delivery methods (orange juice - OJ or ascorbic acid - VC). The graph below illustrates the variation in tooth length, concerning each dose, for the two methods used.
+
+```{r fig.width=8, fig.height=4, echo=FALSE}
+library(ggplot2)
+options(warn=-1)
+g <- qplot(dose, len, data = ToothGrowth, facets = .~ supp) +  stat_smooth() +
+    geom_point()
+suppressMessages(print(g))
+options(warn=0)
+```
+
+2. Provide a basic summary of the data.
+
+```{r echo=FALSE}
+library(knitr)
+# library(xtable)
+data(ToothGrowth)
+df <- ToothGrowth
+
+# Averages "len" by "supp" and "dose" as a crosstable
+favg <- function(supp){
+    sapply(split(df$len[df$supp==supp],df$dose[df$supp==supp]),mean)
+}
+# Standard deviatio of "len" by "supp" and "dose" as a crosstable
+fstd <- function(supp){
+    sapply(split(df$len[df$supp==supp],df$dose[df$supp==supp]),sd)
+}
+# Median of "len" by "supp" and "dose" as a crosstable
+fmed <- function(supp){
+    sapply(split(df$len[df$supp==supp],df$dose[df$supp==supp]),median)
+}
+# Min of "len" by "supp" and "dose" as a crosstable
+fmin <- function(supp){
+    sapply(split(df$len[df$supp==supp],df$dose[df$supp==supp]),min)
+}
+# Min of "len" by "supp" and "dose" as a crosstable
+fmax <- function(supp){
+    sapply(split(df$len[df$supp==supp],df$dose[df$supp==supp]),max)
+}
+# transforms the crosstable (matrix) into a dataframe
+ct2df <- function(ct){
+    n <- nrow(ct)*ncol(ct)
+    df <- data.frame(Len=numeric(n), supp=character(n), dose=numeric(n),
+                     stringsAsFactors=FALSE)
+    n <- 0
+    for(l in 1:nrow(ct)){
+        for(c in 1:ncol(ct)){
+            n <- n + 1
+            df[n,] <- list(ct[l,c],rownames(ct)[l],colnames(ct)[c])
+        }
+    }
+    df
+}
+
+ct <- t(sapply(levels(df$supp),favg))
+d1 <- ct2df(ct)
+ct <- t(sapply(levels(df$supp),fstd))
+d2 <- ct2df(ct)
+ct <- t(sapply(levels(df$supp),fmed))
+d3 <- ct2df(ct)
+ct <- t(sapply(levels(df$supp),fmin))
+d4 <- ct2df(ct)
+ct <- t(sapply(levels(df$supp),fmax))
+d5 <- ct2df(ct)
+d1  <- cbind(d1[c(2,3)], len.mean = d1$Len, len.std = d2$Len, len.median = d3$Len, len.min = d4$Len, len.max = d5$Len)
+```
+
+\begin{center}
+```{r echo=FALSE, results='asis'}
+kable(d1,format="latex")
+#tbl <- xtable(d1)
+#suppressMessages(print(tbl, type="latex"))
+```
+\end{center}
+
+
+3. Use confidence intervals and hypothesis tests to compare tooth growth by supp and dose. (Use the techniques from class even if there's other approaches worth considering).
+
+> For this task, let's consider that each individual belonging to a set of 10 guinea pigs grouped by "supp" and "dose" was chosen by randomization, so it's reasonable to just compare two groups with a $t$ confidence interval or $t$ test.
+
+> Based on above, the main goal is to compare the tooth length mean related to a dose of OJ with the tooth length mean related to the same dose of CV. Just looking at the previous graph and table, without any formal statistical test, it does appear that the average tooth length induced by OJ is greater than the average tooth length induced by CV, except for the 2 mg dose in which they appear to be the same. Let's actually look at it using a formal confidence interval of 95%. The 95th percentile of the $t$ distribution with (10+10-2) 18 df is **1.734**.
+
+> Once the data documentation said nothing about how data was collected, whether paired or independent, it is reasonable to assume, from the data structure, that they are independent groups. However, for comparison purpose, both cases were considered.
+
+> Once it has been assumed randomness, it would be reasonable to expect that the variance is the same for each two groups (OJ and VC) of the same dose. However, when there is some doubt, like in the present case, a different variance per group must be assumed. For the pourpose of this analisys, both were considered.
+
+> Hypothesis 1 (dose of 0.5 mg):  $H_0: \mu_{OJ} = \mu_{CV}$ and $H_a: \mu_{OJ} > \mu_{CV}$
+
+```{r echo=FALSE}
+dose<-0.5
+tpe<-t.test(df$len[df$dose == dose & df$supp == "OJ"],df$len[df$dose == dose & df$supp == "VC"],paired=TRUE, alternative = "greater", var.equal = TRUE)
+
+tie<-t.test(df$len[df$dose == dose & df$supp == "OJ"],df$len[df$dose == dose & df$supp == "VC"],paired=FALSE, alternative = "greater", var.equal = TRUE)
+
+tid<-t.test(df$len[df$dose == dose & df$supp == "OJ"],df$len[df$dose == dose & df$supp == "VC"],paired=FALSE, alternative = "greater", var.equal = FALSE)
+
+tdf <- data.frame(analysis=c("paired","independent","independent"),
+                  variance=c("equal","equal","different"),
+                  t=c(tpe[[1]],tie[[1]],tid[[1]]),
+                  low.limit=c(tpe[[4]][1],tie[[4]][1],tid[[4]][1]),
+                  upper.limit=c(tpe[[4]][2],tie[[4]][2],tid[[4]][2]))
+```
+
+\begin{center}
+```{r echo=FALSE, results='asis'}
+kable(tdf,format="latex")
+```
+\end{center}
+
+> Hypothesis 2 (dose of 1 mg):  $H_0: \mu_{OJ} = \mu_{CV}$ and $H_a: \mu_{OJ} > \mu_{CV}$
+
+```{r echo=FALSE}
+dose<-1
+tpe<-t.test(df$len[df$dose == dose & df$supp == "OJ"],df$len[df$dose == dose & df$supp == "VC"],paired=TRUE, alternative = "greater", var.equal = TRUE)
+
+tie<-t.test(df$len[df$dose == dose & df$supp == "OJ"],df$len[df$dose == dose & df$supp == "VC"],paired=FALSE, alternative = "greater", var.equal = TRUE)
+
+tid<-t.test(df$len[df$dose == dose & df$supp == "OJ"],df$len[df$dose == dose & df$supp == "VC"],paired=FALSE, alternative = "greater", var.equal = FALSE)
+
+tdf <- data.frame(analysis=c("paired","independent","independent"),
+                  variance=c("equal","equal","different"),
+                  t=c(tpe[[1]],tie[[1]],tid[[1]]),
+                  low.limit=c(tpe[[4]][1],tie[[4]][1],tid[[4]][1]),
+                  upper.limit=c(tpe[[4]][2],tie[[4]][2],tid[[4]][2]))
+```
+
+\begin{center}
+```{r echo=FALSE, results='asis'}
+kable(tdf,format="latex")
+```
+\end{center}
+
+> Hypothesis 3 (dose of 2 mg):  $H_0: \mu_{OJ} = \mu_{CV}$ and $H_a: \mu_{OJ} > \mu_{CV}$
+
+
+```{r echo=FALSE}
+dose<-2
+tpe<-t.test(df$len[df$dose == dose & df$supp == "OJ"],df$len[df$dose == dose & df$supp == "VC"],paired=TRUE, alternative = "greater", var.equal = TRUE)
+
+tie<-t.test(df$len[df$dose == dose & df$supp == "OJ"],df$len[df$dose == dose & df$supp == "VC"],paired=FALSE, alternative = "greater", var.equal = TRUE)
+
+tid<-t.test(df$len[df$dose == dose & df$supp == "OJ"],df$len[df$dose == dose & df$supp == "VC"],paired=FALSE, alternative = "greater", var.equal = FALSE)
+
+tdf <- data.frame(analysis=c("paired","independent","independent"),
+                  variance=c("equal","equal","different"),
+                  t=c(tpe[[1]],tie[[1]],tid[[1]]),
+                  low.limit=c(tpe[[4]][1],tie[[4]][1],tid[[4]][1]),
+                  upper.limit=c(tpe[[4]][2],tie[[4]][2],tid[[4]][2]))
+```
+
+\begin{center}
+```{r echo=FALSE, results='asis'}
+kable(tdf,format="latex")
+```
+\end{center}
+
+4. State your conclusions and the assumptions needed for your conclusions. 
+
+> This analysis takes into account both the output of the $t$ test and the confidence interval (CI). The test results of hypotheses 1 and 2 (0.5 mg and 1 mg) show that the $t$ statistic is greater than the 95th percentile (1.734) for all the situations tested. Hence, $H_0$ must be rejected. The CIs are all entirely above zero which allows us to accept that $\mu_{OJ} - \mu_{CV} > 0$. Comparing equal and different variances for independent groups, it can be seen that CIs are wider when different variances are considered. Based on these two first hypotheses, we can suggest that the efficiency of OJ, concerning tooth growth, is higher than that of VC. For the hypothesis 3 (2 mg), on the other hand, the $t$ statistic is lower than 1.734 and the CI contains zero, so we need to admit zero as a possibility for the population difference between the two groups. Hence, we fail to reject $H_0$ and we can infer that, for higher doses, OJ and CV are equally efficient in helping tooth growth.
+
+P.S.: The markdown file used to generate this report can be found in
+https://github.com/Fpschwartz1/StatisticalInference_CourseProject/blob/master/CourseProject_Part2.Rmd
+
+
